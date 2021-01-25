@@ -16,10 +16,10 @@
 * SPDX-License-Identifier: Apache-2.0
 */
 
-mod kni;
-mod mbuf;
-mod mempool;
-mod port;
+pub mod kni;
+pub mod mbuf;
+pub mod mempool;
+pub mod port;
 #[cfg(feature = "metrics")]
 mod stats;
 
@@ -27,7 +27,7 @@ mod stats;
 pub use self::kni::*;
 #[allow(unreachable_pub)]
 pub use self::mbuf::*;
-pub(crate) use self::mempool::*;
+pub use self::mempool::*;
 #[allow(unreachable_pub)]
 pub use self::port::*;
 #[cfg(feature = "metrics")]
@@ -124,7 +124,7 @@ impl CoreId {
     /// Creates a new CoreId from the numeric ID assigned to the core
     /// by the system.
     #[inline]
-    pub(crate) fn new(i: usize) -> CoreId {
+    pub fn new(i: usize) -> CoreId {
         CoreId(i)
     }
 
@@ -177,7 +177,7 @@ thread_local! {
 }
 
 /// Initializes the Environment Abstraction Layer (EAL).
-pub(crate) fn eal_init(args: Vec<String>) -> Fallible<()> {
+pub fn eal_init(args: Vec<String>) -> Fallible<()> {
     debug!(arguments=?args);
 
     let len = args.len() as raw::c_int;
@@ -194,7 +194,7 @@ pub(crate) fn eal_init(args: Vec<String>) -> Fallible<()> {
 }
 
 /// Cleans up the Environment Abstraction Layer (EAL).
-pub(crate) fn eal_cleanup() -> Fallible<()> {
+pub fn eal_cleanup() -> Fallible<()> {
     unsafe {
         ffi::rte_eal_cleanup()
             .to_result(DpdkError::from_errno)

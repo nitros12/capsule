@@ -36,7 +36,7 @@ const DEFAULT_RSS_HF: u64 =
 
 /// An opaque identifier for an Ethernet device port.
 #[derive(Copy, Clone)]
-pub(crate) struct PortId(u16);
+pub struct PortId(u16);
 
 impl PortId {
     /// Returns the ID of the socket the port is connected to.
@@ -278,7 +278,7 @@ pub(crate) enum PortError {
 }
 
 /// An Ethernet device port.
-pub(crate) struct Port {
+pub struct Port {
     id: PortId,
     name: String,
     device: String,
@@ -289,7 +289,7 @@ pub(crate) struct Port {
 
 impl Port {
     /// Returns the port id.
-    pub(crate) fn id(&self) -> PortId {
+    pub fn id(&self) -> PortId {
         self.id
     }
 
@@ -297,7 +297,7 @@ impl Port {
     ///
     /// For applications with more than one port, this name can be used to
     /// identifer the port.
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
@@ -307,7 +307,7 @@ impl Port {
     }
 
     /// Returns the available port queues.
-    pub(crate) fn queues(&self) -> &HashMap<CoreId, PortQueue> {
+    pub fn queues(&self) -> &HashMap<CoreId, PortQueue> {
         &self.queues
     }
 
@@ -323,7 +323,7 @@ impl Port {
     /// # Errors
     ///
     /// If the port fails to start, `DpdkError` is returned.
-    pub(crate) fn start(&mut self) -> Fallible<()> {
+    pub fn start(&mut self) -> Fallible<()> {
         unsafe {
             ffi::rte_eth_dev_start(self.id.0).to_result(DpdkError::from_errno)?;
         }
@@ -333,7 +333,7 @@ impl Port {
     }
 
     /// Stops the port.
-    pub(crate) fn stop(&mut self) {
+    pub fn stop(&mut self) {
         unsafe {
             ffi::rte_eth_dev_stop(self.id.0);
         }
@@ -375,7 +375,7 @@ impl Drop for Port {
 }
 
 /// Builds a port from the configuration values.
-pub(crate) struct PortBuilder<'a> {
+pub struct PortBuilder<'a> {
     name: String,
     device: String,
     port_id: PortId,
@@ -396,7 +396,7 @@ impl<'a> PortBuilder<'a> {
     /// # Errors
     ///
     /// If the device is not found, `DpdkError` is returned.
-    pub(crate) fn new(name: String, device: String) -> Fallible<Self> {
+    pub fn new(name: String, device: String) -> Fallible<Self> {
         let mut port_id = 0u16;
         unsafe {
             ffi::rte_eth_dev_get_port_by_name(device.clone().to_cstring().as_ptr(), &mut port_id)
@@ -432,7 +432,7 @@ impl<'a> PortBuilder<'a> {
     ///
     /// If either the maximum number of RX or TX queues is less than the
     /// number of cores assigned, `PortError` is returned.
-    pub(crate) fn cores(&mut self, cores: &[CoreId]) -> Fallible<&mut Self> {
+    pub fn cores(&mut self, cores: &[CoreId]) -> Fallible<&mut Self> {
         ensure!(!cores.is_empty(), PortError::CoreNotBound);
 
         let mut cores = cores.to_vec();
@@ -462,7 +462,7 @@ impl<'a> PortBuilder<'a> {
     /// # Errors
     ///
     /// If the adjustment failed, `DpdkError` is returned.
-    pub(crate) fn rx_tx_queue_capacity(&mut self, rxd: usize, txd: usize) -> Fallible<&mut Self> {
+    pub fn rx_tx_queue_capacity(&mut self, rxd: usize, txd: usize) -> Fallible<&mut Self> {
         let mut rxd2 = rxd as u16;
         let mut txd2 = txd as u16;
 
@@ -490,14 +490,14 @@ impl<'a> PortBuilder<'a> {
     }
 
     /// Sets the available mempools.
-    pub(crate) fn mempools(&'a mut self, mempools: &'a mut [Mempool]) -> &'a mut Self {
+    pub fn mempools(&'a mut self, mempools: &'a mut [Mempool]) -> &'a mut Self {
         self.mempools = MempoolMap::new(mempools);
         self
     }
 
     /// Creates the `Port`.
     #[allow(clippy::cognitive_complexity)]
-    pub(crate) fn finish(
+    pub fn finish(
         &mut self,
         promiscuous: bool,
         multicast: bool,

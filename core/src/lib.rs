@@ -123,7 +123,7 @@ extern crate self as capsule;
 
 pub mod batch;
 pub mod config;
-mod dpdk;
+pub mod dpdk;
 mod ffi;
 mod macros;
 #[cfg(feature = "metrics")]

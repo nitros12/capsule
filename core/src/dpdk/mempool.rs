@@ -30,7 +30,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// A memory pool is an allocator of message buffers, or `Mbuf`. For best
 /// performance, each socket should have a dedicated `Mempool`.
-pub(crate) struct Mempool {
+pub struct Mempool {
     raw: NonNull<ffi::rte_mempool>,
 }
 
@@ -51,7 +51,7 @@ impl Mempool {
     /// # Errors
     ///
     /// If allocation fails, then `DpdkError` is returned.
-    pub(crate) fn new(capacity: usize, cache_size: usize, socket_id: SocketId) -> Fallible<Self> {
+    pub fn new(capacity: usize, cache_size: usize, socket_id: SocketId) -> Fallible<Self> {
         static MEMPOOL_COUNT: AtomicUsize = AtomicUsize::new(0);
         let n = MEMPOOL_COUNT.fetch_add(1, Ordering::Relaxed);
         let name = format!("mempool{}", n);

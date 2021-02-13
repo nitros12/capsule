@@ -145,7 +145,7 @@ impl PortQueue {
     }
     /// Receives a burst of packets from the receive queue, up to a maximum
     /// of 32 packets.
-    pub(crate) fn receive(&self) -> Vec<Mbuf> {
+    pub fn receive(&self) -> Vec<Mbuf> {
         const RX_BURST_MAX: usize = 32;
         let mut ptrs = Vec::with_capacity(RX_BURST_MAX);
 
@@ -169,9 +169,65 @@ impl PortQueue {
         }
     }
 
+    /// Receives a burst of packets from the receive queue without allocating
+    pub fn receive_into(&self, temp: &mut Vec<*mut ()>, dest: &mut Vec<Mbuf>, limit: u16) {
+        temp.clear();
+        dest.clear();
+        temp.reserve(limit as usize);
+        dest.reserve(limit as usize);
+
+        let len = unsafe {
+            ffi::_rte_eth_rx_burst(
+                self.port_id.0,
+                self.rxq.0,
+                temp.as_mut_ptr() as *mut _,
+                limit,
+            )
+        };
+
+        unsafe {
+            temp.set_len(len as usize);
+            dest.extend(temp.into_iter().map(|ptr| Mbuf::from_ptr(*ptr as *mut _)));
+        }
+    }
+
     /// Sends the packets to the transmit queue.
-    pub(crate) fn transmit(&self, packets: Vec<Mbuf>) {
+    pub fn transmit(&self, packets: Vec<Mbuf>) {
         let mut ptrs = packets.into_iter().map(Mbuf::into_ptr).collect::<Vec<_>>();
+
+        loop {
+            let to_send = ptrs.len() as u16;
+            let sent = unsafe {
+                ffi::_rte_eth_tx_burst(self.port_id.0, self.txq.0, ptrs.as_mut_ptr(), to_send)
+            };
+
+            if sent > 0 {
+                #[cfg(feature = "metrics")]
+                self.transmitted.as_ref().unwrap().record(sent as u64);
+
+                if to_send - sent > 0 {
+                    // still have packets not sent. tx queue is full but still making
+                    // progress. we will keep trying until all packets are sent. drains
+                    // the ones already sent first and try again on the rest.
+                    let _drained = ptrs.drain(..sent as usize).collect::<Vec<_>>();
+                } else {
+                    break;
+                }
+            } else {
+                // tx queue is full and we can't make progress, start dropping packets
+                // to avoid potentially stuck in an endless loop.
+                #[cfg(feature = "metrics")]
+                self.dropped.as_ref().unwrap().record(ptrs.len() as u64);
+
+                super::mbuf_free_bulk(ptrs);
+                break;
+            }
+        }
+    }
+
+    /// Sends the packets to the transmit queue.
+    pub fn transmit_from(&self, packets: &mut Vec<Mbuf>) {
+        let mut ptrs = packets.drain(..).map( Mbuf::into_ptr).collect::<Vec<_>>();
 
         loop {
             let to_send = ptrs.len() as u16;

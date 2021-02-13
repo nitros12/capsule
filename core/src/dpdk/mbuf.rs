@@ -203,6 +203,10 @@ impl Mbuf {
         (raw.buf_len - raw.data_off - raw.data_len) as usize
     }
 
+
+    // mbuf: [HHHHDDDDD]
+    // mbuf.extend(4, 4)
+    // mbuf: [HHHH0000DDDDD]
     /// Extends the data buffer at offset by `len` bytes.
     ///
     /// If the offset is not at the end of the data. The data after the

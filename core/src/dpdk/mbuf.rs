@@ -402,7 +402,7 @@ impl Mbuf {
     }
 
     /// Frees the message buffers in bulk.
-    pub(crate) fn free_bulk(mbufs: Vec<Mbuf>) {
+    pub fn free_bulk(mbufs: Vec<Mbuf>) {
         let ptrs = mbufs.into_iter().map(Mbuf::into_ptr).collect::<Vec<_>>();
         super::mbuf_free_bulk(ptrs);
     }

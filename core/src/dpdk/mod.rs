@@ -20,8 +20,12 @@ pub mod kni;
 pub mod mbuf;
 pub mod mempool;
 pub mod port;
+pub mod heap;
 #[cfg(feature = "metrics")]
 mod stats;
+
+#[allow(unreachable_pub)]
+pub use self::heap::*;
 
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use self::kni::*;
@@ -85,6 +89,16 @@ impl SocketId {
     #[inline]
     pub fn current() -> SocketId {
         unsafe { SocketId(ffi::rte_socket_id() as raw::c_int) }
+    }
+
+    pub fn of_heap(heap_name: &str) -> Fallible<SocketId> {
+        let name = heap_name.to_cstring();
+        unsafe {
+            Ok(SocketId(
+                ffi::rte_malloc_heap_get_socket(heap_name.as_ptr() as *const i8)
+                    .to_result(DpdkError::from_errno)? as raw::c_int,
+            ))
+        }
     }
 
     /// Returns all the socket IDs detected on the system.

@@ -140,11 +140,12 @@ pub(crate) enum MempoolError {
 #[derive(Debug)]
 pub(crate) struct MempoolMap<'a> {
     inner: HashMap<SocketId, &'a mut Mempool>,
+    extra_mappings: HashMap<SocketId, SocketId>,
 }
 
 impl<'a> MempoolMap<'a> {
     /// Creates a new map from a mutable slice.
-    pub(crate) fn new(mempools: &'a mut [Mempool]) -> Self {
+    pub fn new(mempools: &'a mut [Mempool], extra_mappings: &[(SocketId, SocketId)]) -> Self {
         let map = mempools
             .iter_mut()
             .map(|pool| {
@@ -153,7 +154,12 @@ impl<'a> MempoolMap<'a> {
             })
             .collect::<HashMap<_, _>>();
 
-        Self { inner: map }
+        let extras = extra_mappings.into_iter().cloned().collect();
+
+        Self {
+            inner: map,
+            extra_mappings: extras,
+        }
     }
 
     /// Returns a mutable reference to the raw mempool corresponding to the
@@ -162,9 +168,17 @@ impl<'a> MempoolMap<'a> {
     /// # Errors
     ///
     /// If the value is not found, `MempoolError::NotFound` is returned.
-    pub(crate) fn get_raw(&mut self, socket_id: SocketId) -> Fallible<&mut ffi::rte_mempool> {
+    pub fn get_raw(&mut self, socket_id: SocketId) -> Fallible<&mut ffi::rte_mempool> {
+        let potential_alt = self.extra_mappings.get(&socket_id).cloned();
+
+        let sid = match (self.inner.contains_key(&socket_id), potential_alt) {
+            (true, _) => socket_id,
+            (_, Some(s)) => s,
+            _ => return Err(MempoolError::NotFound(socket_id).into()),
+        };
+
         self.inner
-            .get_mut(&socket_id)
+            .get_mut(&sid)
             .ok_or_else(|| MempoolError::NotFound(socket_id).into())
             .map(|pool| pool.raw_mut())
     }
@@ -174,6 +188,17 @@ impl<'a> Default for MempoolMap<'a> {
     fn default() -> MempoolMap<'a> {
         MempoolMap {
             inner: HashMap::new(),
+            extra_mappings: HashMap::new(),
         }
+    }
+}
+
+pub fn calc_object_size(elem_size: u32, flags: u32) -> u32 {
+    unsafe {
+        ffi::rte_mempool_calc_obj_size(
+            elem_size,
+            flags,
+            ptr::null::<ffi::rte_mempool_objsz>() as *mut _,
+        )
     }
 }

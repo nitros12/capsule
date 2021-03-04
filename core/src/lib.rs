@@ -124,7 +124,7 @@ extern crate self as capsule;
 pub mod batch;
 pub mod config;
 pub mod dpdk;
-mod ffi;
+pub mod ffi;
 mod macros;
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "default", feature = "metrics"))))]
